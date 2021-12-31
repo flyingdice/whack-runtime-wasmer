@@ -2,7 +2,7 @@ package internal
 
 import (
 	"github.com/flyingdice/whack-runtime-wasmer/internal/consts"
-	"github.com/flyingdice/whack-sdk/sdk/runtime"
+	"github.com/flyingdice/whack-sdk/pkg/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )

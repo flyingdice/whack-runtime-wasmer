@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"github.com/flyingdice/whack-sdk/sdk"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 

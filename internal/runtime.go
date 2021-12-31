@@ -1,9 +1,8 @@
 package internal
 
 import (
-	"github.com/flyingdice/whack-sdk/sdk/id"
-	"github.com/flyingdice/whack-sdk/sdk/module"
-	"github.com/flyingdice/whack-sdk/sdk/runtime"
+	"github.com/flyingdice/whack-sdk/pkg/sdk"
+	"github.com/flyingdice/whack-sdk/pkg/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
@@ -26,7 +25,7 @@ type Runtime struct {
 func (r *Runtime) NewInstance() (runtime.Instance, error) { return NewInstance(r) }
 
 // NewRuntime creates a new runtime.
-func NewRuntime(mod module.Module, cfg runtime.Config) (*Runtime, error) {
+func NewRuntime(mod sdk.Module, cfg runtime.Config) (*Runtime, error) {
 	// Create global state.
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
@@ -62,7 +61,7 @@ func NewRuntime(mod module.Module, cfg runtime.Config) (*Runtime, error) {
 }
 
 // wasiEnv creates a Wasi environment for the given runtime wasi config.
-func wasiEnv(wrn id.WRN, config runtime.WasiConfig) (*wasmer.WasiEnvironment, error) {
+func wasiEnv(wrn sdk.WRN, config runtime.WasiConfig) (*wasmer.WasiEnvironment, error) {
 	builder := wasmer.NewWasiStateBuilder(wrn.Name())
 
 	// Arguments
