@@ -2,9 +2,12 @@ package internal
 
 import (
 	"github.com/flyingdice/whack-runtime-wasmer/internal/consts"
+	"github.com/flyingdice/whack-sdk/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
+
+var _ runtime.Instance = (*Instance)(nil)
 
 // Instance wraps an active Wasmer instance with a helpful
 // API for interacting with it.

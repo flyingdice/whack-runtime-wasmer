@@ -3,10 +3,12 @@ package internal
 import (
 	"github.com/flyingdice/whack-sdk/sdk/id"
 	"github.com/flyingdice/whack-sdk/sdk/module"
-	"github.com/flyingdice/whack-sdk/sdk/runtime/config"
+	"github.com/flyingdice/whack-sdk/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
+
+var _ runtime.Runtime = (*Runtime)(nil)
 
 // TODO (ahawker) Cache compiled modules?
 // TODO (ahawker) Reactor support? Do we call start/init during creation or lazy?
@@ -21,10 +23,10 @@ type Runtime struct {
 }
 
 // NewInstance creates a new Instance for the runtime.
-func (r *Runtime) NewInstance() (*Instance, error) { return NewInstance(r) }
+func (r *Runtime) NewInstance() (runtime.Instance, error) { return NewInstance(r) }
 
 // NewRuntime creates a new runtime.
-func NewRuntime(mod module.Module, cfg config.Config) (*Runtime, error) {
+func NewRuntime(mod module.Module, cfg runtime.Config) (*Runtime, error) {
 	// Create global state.
 	engine := wasmer.NewEngine()
 	store := wasmer.NewStore(engine)
@@ -60,7 +62,7 @@ func NewRuntime(mod module.Module, cfg config.Config) (*Runtime, error) {
 }
 
 // wasiEnv creates a Wasi environment for the given runtime wasi config.
-func wasiEnv(wrn id.WRN, config config.WasiConfig) (*wasmer.WasiEnvironment, error) {
+func wasiEnv(wrn id.WRN, config runtime.WasiConfig) (*wasmer.WasiEnvironment, error) {
 	builder := wasmer.NewWasiStateBuilder(wrn.Name())
 
 	// Arguments

@@ -2,7 +2,7 @@ package internal
 
 import (
 	"github.com/flyingdice/whack-runtime-wasmer/internal/consts"
-	"github.com/flyingdice/whack-sdk/sdk/runtime/config"
+	"github.com/flyingdice/whack-sdk/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
@@ -13,7 +13,7 @@ func importObject(
 	env *wasmer.WasiEnvironment,
 	store *wasmer.Store,
 	mod *wasmer.Module,
-	imports config.HostImports,
+	imports runtime.HostImports,
 ) (*wasmer.ImportObject, error) {
 	// Create new global imports object.
 	obj, err := env.GenerateImportObject(store, mod)
@@ -32,7 +32,7 @@ func importObject(
 // with the import object to be accessible by WASM code.
 func hostImports(
 	store *wasmer.Store,
-	imports config.HostImports,
+	imports runtime.HostImports,
 ) map[string]wasmer.IntoExtern {
 	ext := map[string]wasmer.IntoExtern{}
 
@@ -48,7 +48,7 @@ func hostImports(
 }
 
 // importFunctions builds a map of host functions that can be accessed by WASM code.
-func importFunctions(imports config.HostImports) map[string]*function {
+func importFunctions(imports runtime.HostImports) map[string]*function {
 	functions := make(map[string]*function)
 	for _, fn := range imports.Functions() {
 		functions[fn.Name()] = NewFunction(fn)
@@ -57,7 +57,7 @@ func importFunctions(imports config.HostImports) map[string]*function {
 }
 
 // importGlobals builds a map of globals that can be accessed by WASM code.
-func importGlobals(imports config.HostImports) map[string]*global {
+func importGlobals(imports runtime.HostImports) map[string]*global {
 	globals := make(map[string]*global)
 	return globals
 }
