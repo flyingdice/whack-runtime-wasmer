@@ -48,7 +48,10 @@ func (i *Instance) Read(ptr, length int32) ([]byte, error) {
 	}
 
 	buffer := make([]byte, length)
-	copy(buffer, data[ptr:ptr+length])
+
+	if read := copy(buffer, data[ptr:ptr+length]); int32(read) != length {
+		return nil, errors.Errorf("expected to read %d; got %d", length, read)
+	}
 
 	return buffer, nil
 }
@@ -62,7 +65,10 @@ func (i *Instance) Write(ptr int32, bytes []byte) (int32, error) {
 
 	length := int32(len(bytes))
 	data := memory.Data()
-	copy(data[ptr:ptr+length], data)
+
+	if written := copy(data[ptr:ptr+length], data); int32(written) != length {
+		return 0, errors.Errorf("expected to write %d; got %d", length, written)
+	}
 
 	return length, nil
 }
