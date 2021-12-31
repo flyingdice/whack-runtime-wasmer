@@ -5,20 +5,21 @@ import (
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 
-// ValueFunc represents a function that can be used with.
-type ValueFunc func([]wasmer.Value) ([]wasmer.Value, error)
+// GuestFunc represents a function that can be used with Wasmer.
+type GuestFunc func([]wasmer.Value) ([]wasmer.Value, error)
 
-// HostFunc translates between ValueFunc and ffi.Func.
+// HostFunc translates between GuestFunc and sdk.Function.
 type HostFunc func(...wasmer.Value) (interface{}, error)
 
-// function represents a Wasmer function created from a host function.
+// function represents an SDK function represented as a Wasmer guest function.
 type function struct {
 	name   string
 	args   []wasmer.ValueKind
 	retval []wasmer.ValueKind
-	fn     ValueFunc
+	fn     GuestFunc
 }
 
+// Name returns the name of the function.
 func (f *function) Name() string { return f.name }
 
 // Bind creates a new function in the given store.
@@ -29,32 +30,29 @@ func (f *function) Bind(store *wasmer.Store) *wasmer.Function {
 	return wasmer.NewFunction(store, fnType, f.fn)
 }
 
-// NewFunction creates a function for the given whack SDK function.
+// NewFunction creates a function for the given whack sdk.Function.
 func NewFunction(fn sdk.Function) *function {
-	// Variable number of int32 arguments.
+	// Translate args into int32.
 	args := make([]wasmer.ValueKind, fn.NumIn())
 	for i := 0; i < fn.NumIn(); i++ {
 		args[i] = wasmer.I32
 	}
 
-	// Variable number (0, 1) of int32 return values.
+	// Variable number (0 or 1) of int32 return values.
 	retval := make([]wasmer.ValueKind, fn.NumOut())
 	for i := 0; i < fn.NumOut(); i++ {
 		retval[i] = wasmer.I32
 	}
 
-	// Wasmer function with translations to be callable as a pkg import.
-	vf := valueFunc(hostFunc(fn))
-
 	return &function{
 		name:   fn.Name(),
 		args:   args,
 		retval: retval,
-		fn:     vf,
+		fn:     guestFunc(hostFunc(fn)),
 	}
 }
 
-// hostFunc decorates the given ffi.Func so it can be called by our pkg wrapper.
+// hostFunc decorates the given sdk.Function so it can be called by Wasmer.
 //
 // This is responsible for calling the actual golang host function.
 func hostFunc(fn sdk.Function) HostFunc {
@@ -73,9 +71,9 @@ func hostFuncArgs(args ...wasmer.Value) []interface{} {
 	return retval
 }
 
-// valueFunc decorates the given HostFunc so it can be called by pkg.Function.
+// guestFunc decorates the given HostFunc, so it can be called by sdk.Function.
 // This is responsible for translating a WASM function invocation into golang and back.
-func valueFunc(fn HostFunc) ValueFunc {
+func guestFunc(fn HostFunc) GuestFunc {
 	return func(args []wasmer.Value) ([]wasmer.Value, error) {
 		result, err := fn(args...)
 		if err != nil {
