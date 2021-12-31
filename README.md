@@ -12,6 +12,7 @@ Run `make help` to see list of available commands.
 
 ```
 ❯ make help
+lint                           Run golang linter.
 modules                        Tidy up and vendor go modules.
 help                           Print Makefile usage.
 ```
