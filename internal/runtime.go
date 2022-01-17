@@ -7,22 +7,34 @@ import (
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 
-var _ runtime.Runtime = (*Runtime)(nil)
+var _ sdk.Runtime = (*Runtime)(nil)
 
 // TODO (ahawker) Cache compiled modules?
 // TODO (ahawker) Reactor support? Do we call start/init during creation or lazy?
 
 // Runtime encapsulates all Wasmer state necessary to run WASM code.
 type Runtime struct {
-	engine  *wasmer.Engine
-	env     *wasmer.WasiEnvironment
-	imports *wasmer.ImportObject
-	module  *wasmer.Module
-	store   *wasmer.Store
+	cfg    runtime.Config
+	engine *wasmer.Engine
+	env    *wasmer.WasiEnvironment
+	module *wasmer.Module
+	store  *wasmer.Store
+	pool   sdk.InstancePool
 }
 
-// NewInstance creates a new Instance for the runtime.
-func (r *Runtime) NewInstance() (runtime.Instance, error) { return NewInstance(r) }
+// New creates a new Instance for the runtime.
+func (r *Runtime) New() (sdk.Instance, error) {
+	instance, err := NewInstance(r, r.cfg.Host().Imports())
+	if err != nil {
+		return nil, err
+	}
+	return r.pool.Set(instance)
+}
+
+// Get returns the pool instance for the given wrn.
+func (r *Runtime) Get(wrn sdk.WRN) (sdk.Instance, error) {
+	return r.pool.Get(wrn)
+}
 
 // NewRuntime creates a new runtime.
 func NewRuntime(mod sdk.Module, cfg runtime.Config) (*Runtime, error) {
@@ -42,21 +54,19 @@ func NewRuntime(mod sdk.Module, cfg runtime.Config) (*Runtime, error) {
 		return nil, errors.Wrap(err, "failed to create wasi env")
 	}
 
-	// TODO i need to create imports from myself
-	// and from the whack-sdk which is the dep[
-
-	// Create global imports with our extended environment.
-	imports, err := importObject(env, store, compiled, cfg.Host().Imports())
+	// Create runtime instance pool.
+	pool, err := runtime.NewPool()
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create import object")
+		return nil, errors.Wrap(err, "failed to create instance pool")
 	}
 
 	return &Runtime{
-		env:     env,
-		engine:  engine,
-		imports: imports,
-		module:  compiled,
-		store:   store,
+		env:    env,
+		engine: engine,
+		module: compiled,
+		store:  store,
+		cfg:    cfg,
+		pool:   pool,
 	}, nil
 }
 

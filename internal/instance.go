@@ -2,19 +2,24 @@ package internal
 
 import (
 	"github.com/flyingdice/whack-runtime-wasmer/internal/consts"
+	"github.com/flyingdice/whack-sdk/pkg/sdk"
 	"github.com/flyingdice/whack-sdk/pkg/sdk/runtime"
 	"github.com/pkg/errors"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 
-var _ runtime.Instance = (*Instance)(nil)
+var _ sdk.RuntimeInstance = (*Instance)(nil)
 
 // Instance wraps an active Wasmer instance with a helpful
 // API for interacting with it.
 type Instance struct {
+	wrn      sdk.WRN
 	env      *wasmer.WasiEnvironment
 	instance *wasmer.Instance
 }
+
+// WRN returns the resource name for the instance.
+func (i *Instance) WRN() sdk.WRN { return i.wrn }
 
 // Stdout returns the stdout stream for the instance.
 //
@@ -38,12 +43,21 @@ func (i *Instance) Call(name string, args ...interface{}) (interface{}, error) {
 	return function(args...)
 }
 
-// Read memory of given length at a specific pointer location.
-func (i *Instance) Read(ptr, length int32) ([]byte, error) {
+// Close will free resources used by the underlying wasmer instance.
+func (i *Instance) Close() error {
+	i.instance.Close()
+	return nil
+}
+
+// Read memory of given length at a specific address location.
+func (i *Instance) Read(mem sdk.Memory) ([]byte, error) {
 	memory, err := i.instance.Exports.GetMemory(consts.ExportedMemoryName)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get exported memory")
 	}
+
+	addr := mem.Address()
+	length := mem.Length()
 
 	data := memory.Data()
 	if int(length) > len(data) {
@@ -52,15 +66,15 @@ func (i *Instance) Read(ptr, length int32) ([]byte, error) {
 
 	buffer := make([]byte, length)
 
-	if read := copy(buffer, data[ptr:ptr+length]); int32(read) != length {
+	if read := copy(buffer, data[addr:addr+length]); int32(read) != length {
 		return nil, errors.Errorf("expected to read %d; got %d", length, read)
 	}
 
 	return buffer, nil
 }
 
-// Write bytes to memory at a specific pointer location.
-func (i *Instance) Write(ptr int32, bytes []byte) (int32, error) {
+// Write bytes to memory at a specific address location.
+func (i *Instance) Write(addr int32, bytes []byte) (int32, error) {
 	memory, err := i.instance.Exports.GetMemory(consts.ExportedMemoryName)
 	if err != nil {
 		return -1, errors.Wrap(err, "failed to get exported memory")
@@ -69,16 +83,26 @@ func (i *Instance) Write(ptr int32, bytes []byte) (int32, error) {
 	length := int32(len(bytes))
 	data := memory.Data()
 
-	if written := copy(data[ptr:ptr+length], data); int32(written) != length {
+	if written := copy(data[addr:addr+length], bytes); int32(written) != length {
 		return 0, errors.Errorf("expected to write %d; got %d", length, written)
 	}
 
 	return length, nil
 }
 
-func NewInstance(rt *Runtime) (*Instance, error) {
+func NewInstance(rt *Runtime, hostImports runtime.HostImports) (*Instance, error) {
+	// Unique id for this instance so guest invoked host functions can
+	// find the runtime instance they're executing in.
+	id := sdk.RandomWRN()
+
+	// Create global imports with our extended environment.
+	imports, err := importObject(rt, id, hostImports)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create import object")
+	}
+
 	// Create Instance for module module.
-	inst, err := wasmer.NewInstance(rt.module, rt.imports)
+	inst, err := wasmer.NewInstance(rt.module, imports)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create Instance")
 	}
@@ -108,6 +132,7 @@ func NewInstance(rt *Runtime) (*Instance, error) {
 	}
 
 	return &Instance{
+		wrn:      id,
 		instance: inst,
 		env:      rt.env,
 	}, nil

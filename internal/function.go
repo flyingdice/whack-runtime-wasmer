@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"github.com/flyingdice/whack-sdk/pkg/sdk"
 	"github.com/wasmerio/wasmer-go/wasmer"
 )
 
@@ -29,15 +30,15 @@ func (f *function) Bind(store *wasmer.Store) *wasmer.Function {
 	return wasmer.NewFunction(store, fnType, f.fn)
 }
 
-// NewFunction creates a function for the given whack sdk.Function.
-func NewFunction(fn sdk.Function) *function {
-	// Translate args into int32.
+// NewFunction creates a function for the given sdk.Function.
+func NewFunction(runtime *Runtime, instanceWrn sdk.WRN, fn sdk.Function) *function {
+	// Translate golang args into int32.
 	args := make([]wasmer.ValueKind, fn.NumIn())
 	for i := 0; i < fn.NumIn(); i++ {
 		args[i] = wasmer.I32
 	}
 
-	// Variable number (0 or 1) of int32 return values.
+	// Translate golang return value into variable number (0 or 1) of int32 return values.
 	retval := make([]wasmer.ValueKind, fn.NumOut())
 	for i := 0; i < fn.NumOut(); i++ {
 		retval[i] = wasmer.I32
@@ -47,17 +48,17 @@ func NewFunction(fn sdk.Function) *function {
 		name:   fn.Name(),
 		args:   args,
 		retval: retval,
-		fn:     guestFunc(hostFunc(fn)),
+		fn:     guestFunc(hostFunc(runtime, instanceWrn, fn)),
 	}
 }
 
 // hostFunc decorates the given sdk.Function so it can be called by Wasmer.
 //
 // This is responsible for calling the actual golang host function.
-func hostFunc(fn sdk.Function) HostFunc {
+func hostFunc(runtime *Runtime, instanceWrn sdk.WRN, fn sdk.Function) HostFunc {
 	return func(args ...wasmer.Value) (interface{}, error) {
 		hostArgs := hostFuncArgs(args...)
-		return fn.Func()(hostArgs...)
+		return fn.Func()(runtime, instanceWrn, hostArgs...)
 	}
 }
 
